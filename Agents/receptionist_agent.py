@@ -7,27 +7,32 @@ from typing import Annotated
 from typing_extensions import TypedDict
 import dotenv, os, getpass
 
-from pydantic import BaseModel
-from langchain_tavily import TavilySearch
-
-
 from Prompts.receptionist_agent_prompt import receptionist_prompt
+from Data.database import get_patient_by_name
 
-class State(TypedDict):
-    user_query: str
-    messages: Annotated[list, add_messages]
-
-receptionist_graph_compiler = StateGraph(State)
 
 dotenv.load_dotenv(".env")
 KEY = os.environ.get("GOOGLE_API_KEY")
 if not KEY:
     os.environ["GOOGLE_API_KEY"] = getpass.getpass("Your API Key here :")
 
+class State(TypedDict):
+    user_query: str
+    report: dict
+    messages: Annotated[list, add_messages]
+    follow_up_messages : Annotated[list, add_messages]
+
 class ReceptionistAgentSchema(TypedDict):
-    database_query_query: bool = False
-    # web_search_query: bool = False
+    user_name: str
+    database_query: bool = False
     clinical_query: bool = False
+
+class DatabaseQueryResponse(TypedDict):
+    folllow_up_question: str
+    take_user_input: bool
+    clinical_agent: bool
+
+receptionist_graph_compiler = StateGraph(State)
 
 def set_system_prompt(state: State) -> State:
     """Node to set a default system prompt."""
@@ -47,33 +52,16 @@ def take_user_input(state: State) -> State:
     except Exception as e:
         print("Error occured while taking user input - > ", e)
 
-def web_search_tool(state: State) -> State:
-    """Node to perform web search using tavily tool"""
-    try:
-        tavily_tool = TavilySearch(
-            api_key=os.environ.get("TAVILY_API_KEY"), max_results=1
-        )
-        ans = tavily_tool.invoke({"query": "who is cm of up, india"})["results"][0][
-            "content"
-        ]
+def route_database_call_or_clical_agent(state: State):
+    """Roouting NOde to check which tool to use"""
+    if state["database_query"] and state["user_name"] != "":
+        return "db_query"
+    elif state["clinical_query"]:
+        return "clinical_agent"
+    else:
+        return "take_user_input"
 
-        print("Web Search Result -> ", ans)
-
-        # state["messages"].append(HumanMessage(content=state["user_query"]))
-        # state["messages"].append(ai_message)
-
-        return {"messages": state["messages"]}
-    except Exception as e:
-        print("Error occured while performing web search - > ", e)
-
-def tool_or_clical_agent(state: State):
-    """Roouting NOde to check if we have date and time"""
-    if state["date"] and state["end_time"] and state["start_time"]:
-        return "yes"
-    return "no"
-
-
-def select_tool(state: State) -> State:
+def process_query(state: State) -> State:
     try:
 
         llm = init_chat_model(model="gemini-2.5-flash", model_provider="google_genai")
@@ -82,7 +70,62 @@ def select_tool(state: State) -> State:
         response = llm.invoke(message)
         print(response)
 
-        return {"messages": response.content}
+        if response.user_name and response.database_query:
+            return {"user_name": response.user_name, "database_query": True}
+        elif response.clinical_query:
+            return {"clinical_query": True}
+        else:
+            return {"user_query": state["user_query"]}
+        
     except Exception as e:
         print("error occured while exctrating date and time.", e)
 
+def databse_query(state: State) -> State:
+    """Node to make database query"""
+    try:
+        response = get_patient_by_name(state["name"])
+        print(f"Hey {state["name"]}, here i your report: \n", response)
+
+    except Exception as e:
+        print("Error occured while making database query - > ", e)
+
+def handle_follow_up_question(state: State) -> State:
+    """Node to handle follow up questions from user"""
+    try:
+
+        llm = init_chat_model(model="gemini-2.5-flash", model_provider="google_genai")
+        llm = llm.with_structured_output(schema=DatabaseQueryResponse)
+
+        system_promot = "You are a helpful medical receptionist agent.Ask follow-up question based on the discharge information. For any irrlevant queries we will redirect to take user input node. And for clinical queries we will redirect to clinical agent."
+
+        message = [
+            SystemMessage(content=system_promot),
+            (HumanMessage(content=str(state["report"]))),
+        ]
+
+        response = llm.invoke(message)
+        if response.take_user_input:
+            return {"user_query": state["user_query"]}
+        elif response.clinical_agent:
+            return {"clinical_query": True}
+        elif response.folllow_up_questions:
+            return {"follow_up_question": response.folllow_up_question, "messages": AIMessage(content=response.folllow_up_question)}
+     
+    except Exception as e:
+        print("Error occured while taking follow up questions - > ", e)
+
+def route_followups_or_take_input_or_clinical_agent(state: State):
+    """Routing Node to check which tool to use after database query"""
+    if "follow_up_question" in state:
+        return "handle_follow_up_question"
+    elif state["clinical_query"]:
+        return "clinical_agent"
+    else:
+        return "take_user_input"
+
+def clinical_agent(state: State) -> State:
+    """Node to handle clinical queries using clinical agent"""
+    try:
+        print("Redirecting to clinical agent...")
+    except Exception as e:
+        print("Error occured while redirecting to clinical agent - > ", e)
