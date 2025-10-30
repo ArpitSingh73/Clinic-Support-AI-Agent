@@ -10,6 +10,9 @@ class CombinedAgentState(TypedDict):
     clinical_query: bool = False
     report: dict
     folllow_up_question: str
+    nephrology_rag_query: bool
+    web_search_query: bool = False
+    irrelevant_query: bool = False
     receptionist_messages: Annotated[list, add_messages]
     clinical_messages: Annotated[list, add_messages]
     follow_up_messages: Annotated[list, add_messages]

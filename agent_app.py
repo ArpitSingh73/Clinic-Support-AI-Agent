@@ -3,9 +3,25 @@ from langgraph.graph import StateGraph, START
 import dotenv, os, getpass
 
 from graph_state import *
-from Agents.receptionist_agent import set_system_prompt_receptionist, take_user_input, process_reception_query, route_database_call_or_clical_agent, databse_query, handle_follow_up_question, route_followups_or_take_input_or_clinical_agent
+from Agents.receptionist_agent import (
+    set_system_prompt_receptionist,
+    take_user_input,
+    process_reception_query,
+    route_database_call_or_clical_agent,
+    databse_query,
+    handle_follow_up_question,
+    route_followups_or_take_input_or_clinical_agent,
+)
 
-from Agents.clinical_agent import set_system_prompt_clinic, take_user_input_clinic, web_search_tool, nephrology_rag_tool, process_clinic_query, route_rag_or_web_search
+from Agents.clinical_agent import (
+    set_system_prompt_clinic,
+    take_user_input_clinic,
+    web_search_tool,
+    nephrology_rag_tool,
+    process_clinic_query,
+    route_rag_or_web_search,
+    route_finish_or_take_input_clinic,
+)
 
 dotenv.load_dotenv(".env")
 KEY = os.environ.get("GOOGLE_API_KEY")
@@ -33,9 +49,7 @@ combined_graph_compiler.add_node("process_clinic_query", process_clinic_query)
 
 
 combined_graph_compiler.add_edge(START, "set_system_prompt_receptionist")
-combined_graph_compiler.add_edge(
-    "set_system_prompt_receptionist", "take_user_input"
-)
+combined_graph_compiler.add_edge("set_system_prompt_receptionist", "take_user_input")
 combined_graph_compiler.add_edge("take_user_input", "process_reception_query")
 
 combined_graph_compiler.add_conditional_edges(
@@ -53,8 +67,11 @@ combined_graph_compiler.add_edge("database_query", "handle_follow_up_question")
 combined_graph_compiler.add_conditional_edges(
     "handle_follow_up_question",
     route_followups_or_take_input_or_clinical_agent,
-    {"handle_follow_up_question": "handle_follow_up_question", "set_system_prompt_clinic": "set_system_prompt_clinic", 
-     "take_user_input": "take_user_input"},
+    {
+        "handle_follow_up_question": "handle_follow_up_question",
+        "set_system_prompt_clinic": "set_system_prompt_clinic",
+        "take_user_input": "take_user_input",
+    },
 )
 
 combined_graph_compiler.add_edge("set_system_prompt_clinic", "take_user_input_clinic")
@@ -63,31 +80,36 @@ combined_graph_compiler.add_conditional_edges(
     "process_clinic_query",
     route_rag_or_web_search,
     {
-        "nephrology_rag_query": "nephrology_rag_tool",
-        "web_search_query": "web_search_tool",
+        "nephrology_rag_tool": "nephrology_rag_tool",
+        "web_search_tool": "web_search_tool",
         "take_user_input_clinic": "take_user_input_clinic",
     },
 )
 
+combined_graph_compiler.add_conditional_edges(
+    "nephrology_rag_tool",
+    route_finish_or_take_input_clinic,
+    {
+        "take_user_input_clinic": "take_user_input_clinic",
+    },
+)
+
+
 def create_combined_agent():
     """Function to create and return the combined agent."""
+    combined_agent = combined_graph_compiler.compile()
     try:
-        combined_agent = combined_graph_compiler.compile()
         for result in combined_agent.invoke({}):
             print(result)
     except Exception as e:
-        print("Error occured while compiling combined agent - > ", e)
-        combined_agent = combined_graph_compiler.compile()
-        for result in combined_agent.invoke({}, debug=False):
+        print("Some error has occured, let's try again - > ", e)
+        for result in combined_agent.invoke({}):
             print(result)
-
     try:
         png_bytes = combined_agent.get_graph().draw_mermaid_png()
-
         with open("combined_agent.png", "wb") as f:
             f.write(png_bytes)
     except Exception:
-        # This requires some extra dependencies and is optional
         pass
 
 create_combined_agent()

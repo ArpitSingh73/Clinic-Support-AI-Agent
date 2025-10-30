@@ -73,7 +73,6 @@ def databse_query(state: CombinedAgentState) -> CombinedAgentState:
 
         response = get_patient_by_name(state["user_name"])
         if response == None:
-            print(f"Sorry, I couldn't find any discharge report for the name {state['user_name']}. Please check if the name is correct.")
             return {"report": None}
         
         return {"report": response}
@@ -104,11 +103,10 @@ def handle_follow_up_question(state: CombinedAgentState) -> CombinedAgentState:
         )
         receptionist_message.insert(0, SystemMessage(content=system_prompt)) 
 
-        response = llm.invoke(receptionist_message)
-        print(response)
+        response = llm.invoke(receptionist_message) 
 
         if response.get("follow_up_question"):
-            print("Receptionist - ", response.get("follow_up_question"))
+            print("Receptionist - ", response.get("follow_up_question") + "\n\n")
             return {
                 "follow_up_question": response.get("follow_up_question"),
                 "receptionist_messages": AIMessage(
@@ -116,7 +114,6 @@ def handle_follow_up_question(state: CombinedAgentState) -> CombinedAgentState:
                 ),
             }
         elif response.get("clinical_agent"):
-            print("condition met for clinical agent routing")
             return {"clinical_query": True}
         else:
             return {"user_query": state["user_query"]}
