@@ -97,15 +97,12 @@ def handle_follow_up_question(state: CombinedAgentState) -> CombinedAgentState:
         ##case 4: If no report is provided then ask user to provide report first or advice him to check is passed name is correct.
           """
 
-        receptionist_message = list(state.get("receptionist_messages", []))
-        # print("Current receptionist messages -> ", receptionist_message)
+        receptionist_message = list(state.get("receptionist_messages", [])) 
         receptionist_message = receptionist_message[1:]
         receptionist_message.append(
             HumanMessage(content=f"here is my report for {state["user_name"]}: " + str(state["report"]))
         )
-        receptionist_message.insert(0, SystemMessage(content=system_prompt))
-
-        # print("Messages sent to receptionist for follow up -> ", receptionist_message)
+        receptionist_message.insert(0, SystemMessage(content=system_prompt)) 
 
         response = llm.invoke(receptionist_message)
         print(response)

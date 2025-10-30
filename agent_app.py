@@ -71,16 +71,16 @@ combined_graph_compiler.add_conditional_edges(
         "take_user_input_clinic": "take_user_input_clinic",
     },
 )
+
 try:
-    config = {"callbacks": [], "verbose": False}
     combined_agent = combined_graph_compiler.compile()
-    for result in combined_agent.invoke({}):
-        print(result)
+    # for result in combined_agent.invoke({}):
+    #     print(result)
 except Exception as e:
     print("Error occured while compiling combined agent - > ", e)
     combined_agent = combined_graph_compiler.compile()
-    for result in combined_agent.invoke({}, debug=False):
-        print(result)
+    # for result in combined_agent.invoke({}, debug=False):
+    #     print(result)
 
 try:
     png_bytes = combined_agent.get_graph().draw_mermaid_png()

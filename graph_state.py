@@ -15,9 +15,10 @@ class CombinedAgentState(TypedDict):
     follow_up_messages: Annotated[list, add_messages]
 
 
-class ReceptionistAgentSchema(TypedDict):
+class ClinicalAgentSchema(TypedDict):
     nephrology_rag_query: bool = False
     web_search_query: bool = False
+    irrelevant_query: bool = False
 
 
 class ReceptionistAgentSchema(TypedDict):
