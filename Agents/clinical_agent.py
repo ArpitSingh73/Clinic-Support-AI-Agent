@@ -17,6 +17,7 @@ if not KEY:
 
 from graph_state import *
 
+
 def set_system_prompt_clinic(state: CombinedAgentState) -> CombinedAgentState:
     """Node to set a default system prompt."""
     try:
@@ -34,30 +35,35 @@ def take_user_input_clinic(state: CombinedAgentState) -> CombinedAgentState:
             f"\n\nClinic: hi, you have been transferred to me, for furter help.\nI can see you wish to know about: {state["user_query"]}.\nIn that case plesse confirm the same or ask any other clinical question. ",
         )
         user_input = input("User: ")
-        return {
-            "user_query": user_input,
-            "clinical_messages": HumanMessage(content=user_input),
-        }
+        if "yes" in user_input.lower():
+            return {
+                "user_query": state["user_query"],
+                "clinical_messages": HumanMessage(content=state["user_query"]),
+            }
+        else:
+            return {
+                "user_query": user_input,
+                "clinical_messages": HumanMessage(content=user_input),
+            }
+        
     except Exception as e:
         print("Error occured while taking user input - > ", e)
 
 
 def process_clinic_query(state: CombinedAgentState) -> CombinedAgentState:
     try:
-        print("----- in process clinic query", state["clinical_messages"])
+        print("----- in process clinic query")
         llm = init_chat_model(model="gemini-2.5-flash", model_provider="google_genai")
         llm = llm.with_structured_output(schema=ClinicalAgentSchema)
         clinical_messages = list(state.get("clinical_messages", []))
         clinical_messages.append(
             HumanMessage(
-                content=f"here is my report for {state["user_name"]}: "
-                + str(state["report"])
-            )
+                content=f"here is my report for {state["user_name"]}: " + str(state["report"])
+                )
         )
         clinical_messages.append(HumanMessage(content=state.get("user_query", "")))
 
         response = llm.invoke(clinical_messages)
-        print(response)
 
         if response.get("nephrology_rag_query"):
             return {"nephrology_rag_query": True}
@@ -75,7 +81,7 @@ def web_search_tool(state: CombinedAgentState) -> CombinedAgentState:
         tavily_tool = TavilySearch(
             api_key=os.environ.get("TAVILY_API_KEY"), max_results=1
         )
-        ans = tavily_tool.invoke({"query": "who is cm of up, india"})["results"][0][
+        ans = tavily_tool.invoke({"query": state["user_query"]})["results"][0][
             "content"
         ]
         print("Web Search Tool Result -> ", ans)
@@ -99,7 +105,7 @@ def nephrology_rag_tool(state: CombinedAgentState) -> CombinedAgentState:
             ]
         )
 
-        print("Nephrology RAG Tool Result -> ", rag_answer)
+        print("Nephrology RAG Tool Result -> ", rag_answer.get("answer", ""))
 
         return {"clinical_messages": AIMessage(content=rag_answer.get("answer", ""))}
     except Exception as e:
@@ -118,5 +124,5 @@ def route_rag_or_web_search(state: CombinedAgentState):
 
 def route_finish_or_take_input_clinic(state: CombinedAgentState):
     """Routing Node to check which tool to use"""
-    if state.get("insuffient_data"):
+    if state.get("insufficient_data"):
         return "take_user_input_clinic"

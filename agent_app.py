@@ -94,16 +94,15 @@ combined_graph_compiler.add_conditional_edges(
     },
 )
 
-
 def create_combined_agent():
     """Function to create and return the combined agent."""
     combined_agent = combined_graph_compiler.compile()
     try:
-        for result in combined_agent.invoke({}):
-            print(result)
+        for result in combined_agent.invoke({}, {"recursionLimit": 100}):
+            print(" 000",result)
     except Exception as e:
         print("Some error has occured, let's try again - > ", e)
-        for result in combined_agent.invoke({}):
+        for result in combined_agent.invoke({}, {"recursionLimit": 100}):
             print(result)
     try:
         png_bytes = combined_agent.get_graph().draw_mermaid_png()

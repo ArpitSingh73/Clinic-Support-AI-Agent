@@ -36,5 +36,5 @@ class DatabaseQueryResponse(TypedDict):
 
 
 class RagToolResponseSchema(TypedDict):
-    insuffient_data: bool = False
+    insufficient_data: bool = False
     answer: str = ""
