@@ -4,7 +4,10 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 import dotenv, os, getpass
 
 from langchain_tavily import TavilySearch
-from Prompts.clinical_agent_prompt import clinic_agent_prompt
+from Prompts.clinical_agent_prompt import (
+    clinic_agent_prompt,
+    nephrology_rag_tool_prompt,
+)
 from RAG.vector_store import search_vector_store
 
 dotenv.load_dotenv(".env")
@@ -13,7 +16,6 @@ if not KEY:
     os.environ["GOOGLE_API_KEY"] = getpass.getpass("Your API Key here :")
 
 from graph_state import *
-
 
 def set_system_prompt_clinic(state: CombinedAgentState) -> CombinedAgentState:
     """Node to set a default system prompt."""
@@ -86,17 +88,13 @@ def nephrology_rag_tool(state: CombinedAgentState) -> CombinedAgentState:
     """Node to perform RAG over nephrology reference book"""
     try:
         print("----- in nephrology RAG tool")
-        # Placeholder for RAG tool implementation
         rag_answer = search_vector_store(state.get("user_query", ""))
 
         llm = init_chat_model(model="gemini-2.5-flash", model_provider="google_genai")
         llm = llm.with_structured_output(schema=RagToolResponseSchema)
         rag_answer = llm.invoke(
             [
-                SystemMessage(
-                    content="You are a helpful nephrology assistant. you have to answer the question based on the context provided. Try to answer the query in one paragraph only. The context is fetched from vector databse, so try to rephrase so that redability can be improved. Also add some headongs or new lines. If the context is insufficient then inform about it. Here is the context: "
-                    + str(rag_answer)
-                ),
+                SystemMessage(content=nephrology_rag_tool_prompt + str(rag_answer)),
                 HumanMessage(content=state.get("user_query", "")),
             ]
         )

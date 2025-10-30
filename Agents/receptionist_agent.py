@@ -3,7 +3,10 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 import dotenv, os, getpass
 
-from Prompts.receptionist_agent_prompt import receptionist_prompt
+from Prompts.receptionist_agent_prompt import (
+    receptionist_prompt,
+    followup_question_prompt,
+)
 from Data.database import get_patient_by_name
 
 from graph_state import *
@@ -13,22 +16,25 @@ KEY = os.environ.get("GOOGLE_API_KEY")
 if not KEY:
     os.environ["GOOGLE_API_KEY"] = getpass.getpass("Your API Key here :")
 
+
 def set_system_prompt_receptionist(state: CombinedAgentState) -> CombinedAgentState:
     """Node to set a default system prompt."""
     try:
         system_prompt = [SystemMessage(content=receptionist_prompt)]
-        print("Receptionist: Hey, how may I help you today? ")
+        print("Receptionist: Hey, how may I help you today?\nPlease enter you full name to get started.")
         return {"receptionist_messages": system_prompt}
     except Exception as e:
         print("Exception occured while setting prompt -", e)
 
+
 def take_user_input(state: CombinedAgentState) -> CombinedAgentState:
     """Node to take input from user"""
     try:
-        user_input = input(
-            f"User:  "
-        )
-        return {"user_query": user_input, "receptionist_messages": HumanMessage(content=user_input)}
+        user_input = input(f"User:  ")
+        return {
+            "user_query": user_input,
+            "receptionist_messages": HumanMessage(content=user_input),
+        }
     except Exception as e:
         print("Error occured while taking user input - > ", e)
 
@@ -74,7 +80,7 @@ def databse_query(state: CombinedAgentState) -> CombinedAgentState:
         response = get_patient_by_name(state["user_name"])
         if response == None:
             return {"report": None}
-        
+
         return {"report": response}
 
     except Exception as e:
@@ -88,22 +94,17 @@ def handle_follow_up_question(state: CombinedAgentState) -> CombinedAgentState:
         llm = init_chat_model(model="gemini-2.5-flash", model_provider="google_genai")
         llm = llm.with_structured_output(schema=DatabaseQueryResponse)
 
-        system_prompt = """You are a helpful medical receptionist agent.Ask follow-up question based on the discharge information. User will provide you the deischarge report / information. For any irrelevant queries we will redirect to take user input node. And for clinical queries we will redirect to clinical agent.   
-        
-        ##Case 1: If you can find followup question in previous chat then then try to answer that quetion or if feels redirect to clinic agent.
-        ##Case 2: If user is asking any irrelevant question then redirect to take user input node.
-        ##Case 3: If user is asking any clinical question then redirect to clinical agent.
-        ##case 4: If no report is provided then ask user to provide report first or advice him to check is passed name is correct.
-          """
-
-        receptionist_message = list(state.get("receptionist_messages", [])) 
+        receptionist_message = list(state.get("receptionist_messages", []))
         receptionist_message = receptionist_message[1:]
         receptionist_message.append(
-            HumanMessage(content=f"here is my report for {state["user_name"]}: " + str(state["report"]))
+            HumanMessage(
+                content=f"here is my report for {state["user_name"]}: "
+                + str(state["report"])
+            )
         )
-        receptionist_message.insert(0, SystemMessage(content=system_prompt)) 
+        receptionist_message.insert(0, SystemMessage(content=followup_question_prompt))
 
-        response = llm.invoke(receptionist_message) 
+        response = llm.invoke(receptionist_message)
 
         if response.get("follow_up_question"):
             print("Receptionist - ", response.get("follow_up_question") + "\n\n")

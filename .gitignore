@@ -2,4 +2,4 @@
 main.py
 __pycache__/
 .vscode/
-faiss_data/
+faiss_index/
