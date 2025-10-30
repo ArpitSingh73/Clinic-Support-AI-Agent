@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Form, File, UploadFile, BackgroundTasks
 from fastapi.responses import JSONResponse
-
+from agent_app import combined_agent
 RAG_APP = FastAPI()
 
 from RAG.vector_store import search_vector_store

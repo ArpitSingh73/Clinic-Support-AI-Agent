@@ -1,47 +1,27 @@
 from langchain.chat_models import init_chat_model
-from langgraph.graph import StateGraph, START, END
-from langgraph.graph.message import add_messages
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
-from typing import Annotated
-from typing_extensions import TypedDict
 import dotenv, os, getpass
 
-from pydantic import BaseModel
 from langchain_tavily import TavilySearch
-
-
 from Prompts.clinical_agent_prompt import clinic_agent_prompt
-
-
-class State(TypedDict):
-    user_query: str
-    messages: Annotated[list, add_messages]
-
-
-clinic_graph_compiler = StateGraph(State)
 
 dotenv.load_dotenv(".env")
 KEY = os.environ.get("GOOGLE_API_KEY")
 if not KEY:
     os.environ["GOOGLE_API_KEY"] = getpass.getpass("Your API Key here :")
 
+from graph_state import *
 
-class ReceptionistAgentSchema(TypedDict):
-    nephrology_rag_tool: bool = False
-    web_search_query: bool = False 
-
-
-def set_system_prompt_clinic(state: State) -> State:
+def set_system_prompt_clinic(state: CombinedAgentState) -> CombinedAgentState:
     """Node to set a default system prompt."""
     try:
         system_prompt = [SystemMessage(content=clinic_agent_prompt)]
-        return {"messages": system_prompt}
+        return {"clinical_messages": system_prompt}
     except Exception as e:
         print("Exception occured while setting prompt -", e)
 
-
-def take_user_input_clinic(state: State) -> State:
+def take_user_input_clinic(state: CombinedAgentState) -> CombinedAgentState:
     """Node to take input from user"""
     try:
         user_input = input("hi how may i help you ?  __ ")
@@ -49,8 +29,7 @@ def take_user_input_clinic(state: State) -> State:
     except Exception as e:
         print("Error occured while taking user input - > ", e)
 
-
-def web_search_tool_clinic(state: State) -> State:
+def web_search_tool(state: CombinedAgentState) -> CombinedAgentState:
     """Node to perform web search using tavily tool"""
     try:
         tavily_tool = TavilySearch(
@@ -62,15 +41,23 @@ def web_search_tool_clinic(state: State) -> State:
 
         print("Web Search Result -> ", ans)
 
-        # state["messages"].append(HumanMessage(content=state["user_query"]))
-        # state["messages"].append(ai_message)
-
-        return {"messages": state["messages"]}
+        return {"clinical_messages": state["messages"]}
     except Exception as e:
         print("Error occured while performing web search - > ", e)
 
+def nephrology_rag_tool(state: CombinedAgentState) -> CombinedAgentState:
+    """Node to perform RAG over nephrology reference book"""
+    try:
+        # Placeholder for RAG tool implementation
+        rag_answer = "This is a placeholder answer from the nephrology RAG tool."
 
-def select_tool_clinic(state: State) -> State:
+        print("Nephrology RAG Tool Result -> ", rag_answer)
+
+        return {"clinical_messages": AIMessage(content=rag_answer)}
+    except Exception as e:
+        print("Error occured while performing nephrology RAG tool - > ", e)
+
+def process_clinic_query(state: CombinedAgentState) -> CombinedAgentState:
     try:
 
         llm = init_chat_model(model="gemini-2.5-flash", model_provider="google_genai")
@@ -79,7 +66,18 @@ def select_tool_clinic(state: State) -> State:
         response = llm.invoke(message)
         print(response)
 
-        return {"messages": response.content}
+        if response.nephrology_rag_tool:
+            return {"nephrology_rag_tool": True}
+        elif response.web_search_query:
+            return {"web_search_query": True} 
     except Exception as e:
         print("error occured while exctrating date and time.", e)
 
+def route_rag_or_web_search(state: CombinedAgentState):
+    """Routing Node to check which tool to use"""
+    if state.get("nephrology_rag_query"):
+        return "nephrology_rag_tool"
+    elif state.get("web_search_query"):
+        return "web_search_tool"
+    else:
+        return "clinical_agent"
