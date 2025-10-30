@@ -23,7 +23,7 @@ combined_graph_compiler.add_node(
 )
 combined_graph_compiler.add_node("take_user_input", take_user_input)
 combined_graph_compiler.add_node("process_reception_query", process_reception_query)
-combined_graph_compiler.add_node("db_query", databse_query)
+combined_graph_compiler.add_node("database_query", databse_query)
 combined_graph_compiler.add_node("handle_follow_up_question", handle_follow_up_question)
 
 
@@ -45,13 +45,13 @@ combined_graph_compiler.add_conditional_edges(
     "process_reception_query",
     route_database_call_or_clical_agent,
     {
-        "db_query": "db_query",
+        "database_query": "database_query",
         "set_system_prompt_clinic": "set_system_prompt_clinic",
         "take_user_input": "take_user_input",
     },
 )
 
-combined_graph_compiler.add_edge("db_query", "handle_follow_up_question")
+combined_graph_compiler.add_edge("database_query", "handle_follow_up_question")
 
 combined_graph_compiler.add_conditional_edges(
     "handle_follow_up_question",
@@ -71,10 +71,16 @@ combined_graph_compiler.add_conditional_edges(
         "take_user_input_clinic": "take_user_input_clinic",
     },
 )
-
-combined_agent = combined_graph_compiler.compile()
-for result in combined_agent.stream({}):
-    print(result)
+try:
+    config = {"callbacks": [], "verbose": False}
+    combined_agent = combined_graph_compiler.compile()
+    for result in combined_agent.invoke({}):
+        print(result)
+except Exception as e:
+    print("Error occured while compiling combined agent - > ", e)
+    combined_agent = combined_graph_compiler.compile()
+    for result in combined_agent.invoke({}, debug=False):
+        print(result)
 
 try:
     png_bytes = combined_agent.get_graph().draw_mermaid_png()

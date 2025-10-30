@@ -27,6 +27,5 @@ class ReceptionistAgentSchema(TypedDict):
 
 
 class DatabaseQueryResponse(TypedDict):
-    folllow_up_question: str
-    take_user_input: bool
+    follow_up_question: str
     clinical_agent: bool

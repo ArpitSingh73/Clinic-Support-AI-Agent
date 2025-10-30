@@ -4,7 +4,7 @@ from typing import Union
 def get_patient_by_name(patient_name: str) -> Union[str, None]:
     """Fetch patient data by name from a JSON file."""
     try:
-        file_path = "data.json"
+        file_path = "Data/data.json"
         with open(file_path, "r") as file:
             data = json.load(file)
     
