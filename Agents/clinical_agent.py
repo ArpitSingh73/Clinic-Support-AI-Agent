@@ -5,7 +5,7 @@ import dotenv, os, getpass
 
 from langchain_tavily import TavilySearch
 from Prompts.clinical_agent_prompt import clinic_agent_prompt
-
+from RAG.vector_store import search_vector_store
 dotenv.load_dotenv(".env")
 KEY = os.environ.get("GOOGLE_API_KEY")
 if not KEY:
@@ -25,7 +25,10 @@ def set_system_prompt_clinic(state: CombinedAgentState) -> CombinedAgentState:
 def take_user_input_clinic(state: CombinedAgentState) -> CombinedAgentState:
     """Node to take input from user"""
     try:
-        user_input = input("Clinic: hi, you have been transferred to me, can you explain you issue to me so that i can help you. __ ")
+        print(
+            "\n\nClinic: hi, you have been transferred to me, can you explain you issue to me so that i can help you. "
+        )
+        user_input = input("User: ")
         return {"user_query": user_input, "clinical_messages": HumanMessage(content=user_input)}
     except Exception as e:
         print("Error occured while taking user input - > ", e)
@@ -76,7 +79,17 @@ def nephrology_rag_tool(state: CombinedAgentState) -> CombinedAgentState:
     try:
         print("----- in nephrology RAG tool")
         # Placeholder for RAG tool implementation
-        rag_answer = "This is a placeholder answer from the nephrology RAG tool."
+        rag_answer = str(search_vector_store(state.get("user_query", "")))
+        data = []
+        for item in rag_answer:
+            data.append(item['page_content'])
+
+        llm = init_chat_model(model="gemini-2.5-flash", model_provider="google_genai")
+        llm = llm.with_structured_output(schema=RagToolResponseSchema)
+        rag_answer = llm.invoke([
+            SystemMessage(content="You are a helpful nephrology assistant. you have to answer the question based on the context provided. Try to answer the query in one paragraph only. If the context is insufficient then inform about it. Here is the context: " + str(data)),
+            HumanMessage(content= state.get("user_query", ""))
+        ]).content
 
         print("Nephrology RAG Tool Result -> ", rag_answer)
 

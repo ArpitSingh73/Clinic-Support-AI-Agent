@@ -1,8 +1,5 @@
-from langgraph.graph import StateGraph, START, END
-from langgraph.graph.message import add_messages
+from langgraph.graph import StateGraph, START
 
-from typing import Annotated
-from typing_extensions import TypedDict
 import dotenv, os, getpass
 
 from graph_state import *
@@ -72,21 +69,25 @@ combined_graph_compiler.add_conditional_edges(
     },
 )
 
-try:
-    combined_agent = combined_graph_compiler.compile()
-    # for result in combined_agent.invoke({}):
-    #     print(result)
-except Exception as e:
-    print("Error occured while compiling combined agent - > ", e)
-    combined_agent = combined_graph_compiler.compile()
-    # for result in combined_agent.invoke({}, debug=False):
-    #     print(result)
+def create_combined_agent():
+    """Function to create and return the combined agent."""
+    try:
+        combined_agent = combined_graph_compiler.compile()
+        for result in combined_agent.invoke({}):
+            print(result)
+    except Exception as e:
+        print("Error occured while compiling combined agent - > ", e)
+        combined_agent = combined_graph_compiler.compile()
+        for result in combined_agent.invoke({}, debug=False):
+            print(result)
 
-try:
-    png_bytes = combined_agent.get_graph().draw_mermaid_png()
+    try:
+        png_bytes = combined_agent.get_graph().draw_mermaid_png()
 
-    with open("combined_agent.png", "wb") as f:
-        f.write(png_bytes)
-except Exception:
-    # This requires some extra dependencies and is optional
-    pass
+        with open("combined_agent.png", "wb") as f:
+            f.write(png_bytes)
+    except Exception:
+        # This requires some extra dependencies and is optional
+        pass
+
+create_combined_agent()

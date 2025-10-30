@@ -116,6 +116,7 @@ def handle_follow_up_question(state: CombinedAgentState) -> CombinedAgentState:
                 ),
             }
         elif response.get("clinical_agent"):
+            print("condition met for clinical agent routing")
             return {"clinical_query": True}
         else:
             return {"user_query": state["user_query"]}
@@ -129,7 +130,6 @@ def route_followups_or_take_input_or_clinical_agent(state: CombinedAgentState):
     if state.get("follow_up_question"):
         return "handle_follow_up_question"
     elif state.get("clinical_query"):
-        return "clinical_agent"
+        return "set_system_prompt_clinic"
     else:
         return "take_user_input"
-

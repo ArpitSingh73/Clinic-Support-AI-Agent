@@ -30,3 +30,8 @@ class ReceptionistAgentSchema(TypedDict):
 class DatabaseQueryResponse(TypedDict):
     follow_up_question: str
     clinical_agent: bool
+
+
+class RagToolResponseSchema(TypedDict):
+    insuffient_data: bool = False
+    answer: str = ""
