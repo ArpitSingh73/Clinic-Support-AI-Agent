@@ -16,10 +16,7 @@ from Agents.receptionist_agent import (
 from Agents.clinical_agent import (
     set_system_prompt_clinic,
     take_user_input_clinic,
-    web_search_tool,
-    nephrology_rag_tool,
     process_clinic_query,
-    route_rag_or_web_search,
     route_finish_or_take_input_clinic,
 )
 
@@ -43,8 +40,6 @@ combined_graph_compiler.add_node("handle_follow_up_question", handle_follow_up_q
 combined_graph_compiler.add_node("set_system_prompt_clinic", set_system_prompt_clinic)
 
 combined_graph_compiler.add_node("take_user_input_clinic", take_user_input_clinic)
-combined_graph_compiler.add_node("web_search_tool", web_search_tool)
-combined_graph_compiler.add_node("nephrology_rag_tool", nephrology_rag_tool)
 combined_graph_compiler.add_node("process_clinic_query", process_clinic_query)
 
 
@@ -76,23 +71,23 @@ combined_graph_compiler.add_conditional_edges(
 
 combined_graph_compiler.add_edge("set_system_prompt_clinic", "take_user_input_clinic")
 combined_graph_compiler.add_edge("take_user_input_clinic", "process_clinic_query")
-combined_graph_compiler.add_conditional_edges(
-    "process_clinic_query",
-    route_rag_or_web_search,
-    {
-        "nephrology_rag_tool": "nephrology_rag_tool",
-        "web_search_tool": "web_search_tool",
-        "take_user_input_clinic": "take_user_input_clinic",
-    },
-)
+# combined_graph_compiler.add_conditional_edges(
+#     "process_clinic_query",
+#     route_rag_or_web_search,
+#     {
+#         "nephrology_rag_tool": "nephrology_rag_tool",
+#         "web_search_tool": "web_search_tool",
+#         "take_user_input_clinic": "take_user_input_clinic",
+#     },
+# )
 
-combined_graph_compiler.add_conditional_edges(
-    "nephrology_rag_tool",
-    route_finish_or_take_input_clinic,
-    {
-        "take_user_input_clinic": "take_user_input_clinic",
-    },
-)
+# combined_graph_compiler.add_conditional_edges(
+#     "nephrology_rag_tool",
+#     route_finish_or_take_input_clinic,
+#     {
+#         "take_user_input_clinic": "take_user_input_clinic",
+#     },
+# )
 
 def create_combined_agent():
     """Function to create and return the combined agent."""
