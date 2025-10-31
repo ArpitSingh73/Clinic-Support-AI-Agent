@@ -17,4 +17,5 @@ dependencies = [
     "psycopg2>=2.9.11",
     "pypdf2>=3.0.1",
     "sentence-transformers>=5.1.2",
+    "streamlit>=1.51.0",
 ]

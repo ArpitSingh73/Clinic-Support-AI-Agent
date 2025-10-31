@@ -15,7 +15,7 @@ class CombinedAgentState(TypedDict):
     irrelevant_query: bool = False
     receptionist_messages: Annotated[list, add_messages]
     clinical_messages: Annotated[list, add_messages]
-    follow_up_messages: Annotated[list, add_messages]
+    follow_up_messages: str
 
 
 class ClinicalAgentSchema(TypedDict):

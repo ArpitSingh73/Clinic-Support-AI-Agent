@@ -30,9 +30,14 @@ def set_system_prompt_receptionist(state: CombinedAgentState) -> CombinedAgentSt
 
 
 def take_user_input(state: CombinedAgentState) -> CombinedAgentState:
-    # ⛔ Instead of blocking with input(), pause for user input
-    user_input = interrupt("awaiting_user_input")
-    print(f"User:  {user_input}")
+    """Node to take user input from client."""
+    if state.get("follow_up_messages"):
+        user_input = interrupt(state.get("follow_up_messages"))
+    else:
+        user_input = interrupt(
+            "Hi, how can i help you, please enter your name or quey to begin with"
+        )
+    print(f"User:  {user_input}") 
     return {
         "user_query": user_input,
         "receptionist_messages": HumanMessage(content=user_input),
@@ -114,9 +119,13 @@ def handle_follow_up_question(state: CombinedAgentState) -> CombinedAgentState:
                 "receptionist_messages": AIMessage(
                     content=response.get("follow_up_question")
                 ),
+                "follow_up_messages": str(response.get("follow_up_question", "")),
             }
         elif response.get("clinical_agent"):
-            return {"clinical_query": True}
+            return {
+                "clinical_query": True,
+                "clinical_messages": str(response.get("follow_up_messages", "")),
+            }
         else:
             return {"user_query": state.get("user_query", "")}
 
