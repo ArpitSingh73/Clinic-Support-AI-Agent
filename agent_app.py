@@ -1,4 +1,5 @@
 from langgraph.graph import StateGraph, START
+from langgraph.checkpoint.memory import InMemorySaver
 
 import dotenv, os, getpass
 
@@ -17,8 +18,7 @@ from Agents.clinical_agent import (
     set_system_prompt_clinic,
     take_user_input_clinic,
     process_clinic_query,
-    route_finish_or_take_input_clinic,
-)
+    )
 
 dotenv.load_dotenv(".env")
 KEY = os.environ.get("GOOGLE_API_KEY")
@@ -71,39 +71,8 @@ combined_graph_compiler.add_conditional_edges(
 
 combined_graph_compiler.add_edge("set_system_prompt_clinic", "take_user_input_clinic")
 combined_graph_compiler.add_edge("take_user_input_clinic", "process_clinic_query")
-# combined_graph_compiler.add_conditional_edges(
-#     "process_clinic_query",
-#     route_rag_or_web_search,
-#     {
-#         "nephrology_rag_tool": "nephrology_rag_tool",
-#         "web_search_tool": "web_search_tool",
-#         "take_user_input_clinic": "take_user_input_clinic",
-#     },
-# )
 
-# combined_graph_compiler.add_conditional_edges(
-#     "nephrology_rag_tool",
-#     route_finish_or_take_input_clinic,
-#     {
-#         "take_user_input_clinic": "take_user_input_clinic",
-#     },
-# )
+checkpointer = InMemorySaver()
+combined_agent = combined_graph_compiler.compile(checkpointer=checkpointer)
 
-def create_combined_agent():
-    """Function to create and return the combined agent."""
-    combined_agent = combined_graph_compiler.compile()
-    try:
-        for result in combined_agent.invoke({}, {"recursionLimit": 100}):
-            print(" 000",result)
-    except Exception as e:
-        print("Some error has occured, let's try again - > ", e)
-        for result in combined_agent.invoke({}, {"recursionLimit": 100}):
-            print(result)
-    try:
-        png_bytes = combined_agent.get_graph().draw_mermaid_png()
-        with open("combined_agent.png", "wb") as f:
-            f.write(png_bytes)
-    except Exception:
-        pass
 
-create_combined_agent()

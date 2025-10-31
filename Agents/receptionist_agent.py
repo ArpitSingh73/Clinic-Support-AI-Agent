@@ -1,5 +1,7 @@
+# Agents/receptionist_agent.py
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langgraph.types import interrupt
 
 import dotenv, os, getpass
 
@@ -21,22 +23,20 @@ def set_system_prompt_receptionist(state: CombinedAgentState) -> CombinedAgentSt
     """Node to set a default system prompt."""
     try:
         system_prompt = [SystemMessage(content=receptionist_prompt)]
-        print("Receptionist: Hey, how may I help you today?\nPlease enter you full name to get started.")
+        # The node sets the base receptionist messages. The client should show prompt when awaiting.
         return {"receptionist_messages": system_prompt}
     except Exception as e:
         print("Exception occured while setting prompt -", e)
 
 
 def take_user_input(state: CombinedAgentState) -> CombinedAgentState:
-    """Node to take input from user"""
-    try:
-        user_input = input(f"User:  ")
-        return {
-            "user_query": user_input,
-            "receptionist_messages": HumanMessage(content=user_input),
-        }
-    except Exception as e:
-        print("Error occured while taking user input - > ", e)
+    # ⛔ Instead of blocking with input(), pause for user input
+    user_input = interrupt("awaiting_user_input")
+    print(f"User:  {user_input}")
+    return {
+        "user_query": user_input,
+        "receptionist_messages": HumanMessage(content=user_input),
+    }
 
 
 def route_database_call_or_clical_agent(state: CombinedAgentState):
@@ -64,7 +64,7 @@ def process_reception_query(state: CombinedAgentState) -> CombinedAgentState:
         elif response.get("clinical_query"):
             return {"clinical_query": True}
         else:
-            return {"user_query": state["user_query"]}
+            return {"user_query": state.get("user_query", "")}
 
     except Exception as e:
         print("error occured while extracting processing reception query.", e)
@@ -77,8 +77,8 @@ def databse_query(state: CombinedAgentState) -> CombinedAgentState:
         if state.get("report"):
             return {"report": state["report"]}
 
-        response = get_patient_by_name(state["user_name"])
-        if response == None:
+        response = get_patient_by_name(state.get("user_name", ""))
+        if response is None:
             return {"report": None}
 
         return {"report": response}
@@ -95,11 +95,12 @@ def handle_follow_up_question(state: CombinedAgentState) -> CombinedAgentState:
         llm = llm.with_structured_output(schema=DatabaseQueryResponse)
 
         receptionist_message = list(state.get("receptionist_messages", []))
+        # keep previous messages (skip the initial system message)
         receptionist_message = receptionist_message[1:]
         receptionist_message.append(
             HumanMessage(
-                content=f"here is my report for {state["user_name"]}: "
-                + str(state["report"])
+                content=f"here is my report for {state.get('user_name','')}: "
+                + str(state.get("report", {}))
             )
         )
         receptionist_message.insert(0, SystemMessage(content=followup_question_prompt))
@@ -117,7 +118,7 @@ def handle_follow_up_question(state: CombinedAgentState) -> CombinedAgentState:
         elif response.get("clinical_agent"):
             return {"clinical_query": True}
         else:
-            return {"user_query": state["user_query"]}
+            return {"user_query": state.get("user_query", "")}
 
     except Exception as e:
         print("Error occured while taking follow up questions - > ", e)

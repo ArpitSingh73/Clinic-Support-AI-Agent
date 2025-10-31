@@ -1,7 +1,7 @@
+# Agents/clinical_agent.py
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
-
+from langgraph.types import interrupt
 
 import dotenv, os, getpass, json
 
@@ -29,27 +29,12 @@ def set_system_prompt_clinic(state: CombinedAgentState) -> CombinedAgentState:
     except Exception as e:
         print("Exception occured while setting prompt -", e)
 
-
 def take_user_input_clinic(state: CombinedAgentState) -> CombinedAgentState:
-    """Node to take input from user"""
-    try:
-        print(
-            f"\n\nClinic: hi, you have been transferred to me, for furter help.\nI can see you wish to know about: {state["user_query"]}.\nIn that case plesse confirm the same or ask any other clinical question. ",
-        )
-        user_input = input("User: ")
-        if "yes" in user_input.lower():
-            return {
-                "user_query": state["user_query"],
-                "clinical_messages": HumanMessage(content=state["user_query"]),
-            }
-        else:
-            return {
-                "user_query": user_input,
-                "clinical_messages": HumanMessage(content=user_input),
-            }
-
-    except Exception as e:
-        print("Error occured while taking user input - > ", e)
+    user_input = interrupt("awaiting_clinic_input")
+    return {
+        "user_query": user_input,
+        "clinical_messages": HumanMessage(content=user_input),
+    }
 
 
 def web_search_tool(user_query: str):
@@ -82,7 +67,6 @@ def nephrology_rag_tool(user_query: str) -> str:
             ]
         )
 
-        print("Nephrology RAG Tool Result -> ", rag_answer.get("answer", ""))
         print(type(rag_answer))
 
         return rag_answer
@@ -99,8 +83,9 @@ def process_clinic_query(state: CombinedAgentState) -> CombinedAgentState:
         clinical_messages = list(state.get("clinical_messages", []))
         clinical_messages.append(
             HumanMessage(
-                content=f"here is my report for {state["user_name"]}: " + str(state["report"])
-                )
+                content=f"here is my report for {state.get('user_name','')}: "
+                + str(state.get("report", {}))
+            )
         )
         clinical_messages.append(HumanMessage(content=state.get("user_query", "")))
 
@@ -121,12 +106,7 @@ def process_clinic_query(state: CombinedAgentState) -> CombinedAgentState:
                 if tool.__name__ == tool_name:
                     ans = tool(tool_args.get("user_query"))
                     print(f"🔧 Tool {tool_name} returned: {ans}")
-           
+
     except Exception as e:
         print("error occured while exctrating date and time.", e)
 
-
-# def route_finish_or_take_input_clinic(state: CombinedAgentState):
-#     """Routing Node to check which tool to use"""
-#     if state.get("insufficient_data"):
-#         return "take_user_input_clinic"
